@@ -14,7 +14,9 @@ ui.container = function()
     end
     function c:handle_event(evt, ...)
         for _, child in ipairs(self.children) do
-            child[evt](child, ...)
+            if child[evt] then
+                child[evt](child, ...)
+            end
         end
     end
     function c:append(child)
@@ -39,7 +41,7 @@ ui.box = function(x, y, w, h)
         drawlist = {}
     }
     function box:draw()
-        if box.visible then
+        if self.visible then
             if self.draw_background then
                 gfx.fillRect(self.x, self.y, self.w, self.h, self.background.r, self.background.g, self.background.b,  self.background.a)
             end
@@ -70,28 +72,227 @@ ui.box = function(x, y, w, h)
 end
 
 ui.text = function(x, y, text, r, g, b, a)
-
+    local txt = {
+        x = x,
+        y = y,
+        text = text,
+        visible = true,
+        color = {r = r, g = g, b = b, a = a},
+        drawlist = {}
+    }
+    txt.w, txt.h = gfx.textSize(text)
+    txt.x2 = x + txt.w
+    txt.y2 = y + txt.h
+    function txt:draw()
+        if self.visible then
+            gfx.drawText(self.x, self.y, text, self.color.r, self.color.g, self.color.b, self.color.a)
+        end
+    end
+    function txt:drawadd(f)
+        table.insert(self.drawlist, f)
+    end
+	function txt:setcolor(r, g, b, a) 
+        self.color.r = r
+        self.color.g = g
+        self.color.b = b
+        self.color.a = a
+    end
+    function txt:settext(text) 
+        self.text = text
+        self.w, self.h = gfx.textSize(text)
+    end
+	return txt
 end
 
 ui.button = function(x, y, w, h, text, f)
     local button = ui.box(x, y, w, h)
     button.enabled = true
     button.hover = false
+    button.held = false
+    button.f = f
     button.background = {r = 255, g = 255, b = 255, a = 60}
     button:drawadd(function(self)
         local tw, th = gfx.textSize(text)
         th = th - 3 -- for some reason it's 3 too many
-        self.draw_background = self.hover
+        if self.hover then
+            gfx.fillRect(self.x+1, self.y+1, self.w-2, self.h-2, self.background.r, self.background.b, self.background.g, 70)
+        end
         gfx.drawText(self.x + self.w/2 - tw/2, self.y + self.h/2 - th/2, text)
-        
+        if not self.held then
+            gfx.drawLine(self.x, self.y2, self.x2-2, self.y2)
+            gfx.drawLine(self.x-1, self.y+1, self.x-1, self.y2)
+        end
     end)
     function button:mousemove(x, y, dx, dy)
         self.hover = ui.contains(x, y, self.x, self.y, self.x2, self.y2)
     end
-    function button:mousedown(x, y, dx, dy)
-
+    function button:mousedown(x, y, button)
+        if self.hover then
+            self.held = true
+            self.x = self.x - 1
+            self.y = self.y + 1
+        end
+    end
+    function button:mouseup(x, y, button, reason)
+        if self.held then
+            self.held = false
+            self.x = self.x + 1
+            self.y = self.y - 1
+        end
+        if self.hover then
+            self.f()
+        end
     end
     return button
+end
+
+ui.checkbox = function(x, y, text, r, g, b, a)
+    local cb = ui.box(x, y, 9, 9)
+    cb.checked = false
+    cb.label = ui.text(x + 14, y + 1, text, r, g, b, a)
+    cb.hover = false
+    cb.held = false
+    cb:set_backgroud(255, 255, 255)
+    cb:drawadd(function (self)
+        if self.hover then
+            gfx.fillRect(self.x2 + 3, self.y - 1, self.label.w + 3, 11, 40, 40, 40)
+        end
+        if self.draw_background then
+            gfx.drawLine(self.x + 1, self.y + 3, self.x + 3, self.y + 5, 0, 0, 0)
+            gfx.drawLine(self.x + 1, self.y + 4, self.x + 3, self.y + 6, 0, 0, 0)
+            gfx.drawLine(self.x + 1, self.y + 5, self.x + 3, self.y + 7, 0, 0, 0)
+            gfx.drawLine(self.x + 4, self.y + 4, self.x2 - 1, self.y, 0, 0, 0)
+            gfx.drawLine(self.x + 4, self.y + 5, self.x2 - 1, self.y + 1, 0, 0, 0)
+            gfx.drawLine(self.x + 4, self.y + 6, self.x2 - 1, self.y + 2, 0, 0, 0)
+        end
+        if self.held then
+            gfx.fillRect(self.x + 1, self.y + 1, 7, 7)
+        end
+        gfx.drawRect(self.x, self.y, 9, 9)
+        self.label:draw()
+    end)
+    function cb:mousemove(x, y, dx, dy)
+        self.hover = ui.contains(x, y, self.x, self.y, self.x2 + 6 + self.label.w, self.y2)
+    end
+    function cb:mousedown(x, y, button)
+        self.held = self.hover
+    end
+    function cb:mouseup(x, y, button, reason)
+        if self.held then
+            self.held = false
+        end
+        if self.hover then
+            self.checked = not self.checked
+            self.draw_background = not self.draw_background
+        end
+    end
+    return cb
+end
+
+ui.radio_button = function(x, y, text, r, g, b, a)
+    local rb = {
+        x = x,
+        y = y,
+        w = 9,
+        h = 9,
+        x2 = x + 9,
+        y2 = y + 9,
+        visible = true,
+        background = {r = 255, g = 255, b = 255, a = 255},
+        selected = false,
+        label = ui.text(x + 14, y + 1, text, r, g, b, a),
+        hover = false,
+        held = false
+    }
+    function rb:draw()
+        if self.visible then
+            if self.hover then
+                gfx.fillRect(self.x2 + 3, self.y - 1, self.label.w + 3, 11, 40, 40, 40)
+            end
+            if self.selected then
+                gfx.fillRect(self.x + 2, self.y + 2, 5, 5)
+                gfx.drawLine(self.x + 2, self.y + 2, self.x + 2, self.y + 2, 0, 0, 0)
+                gfx.drawLine(self.x + 2, self.y2 - 3, self.x + 2, self.y2 - 3, 0, 0, 0)
+                gfx.drawLine(self.x2 - 3, self.y + 2, self.x2 - 3, self.y + 2, 0, 0, 0)
+                gfx.drawLine(self.x2 - 3, self.y2 - 3, self.x2 - 3, self.y2 - 3, 0, 0, 0)
+            end
+            if self.held then
+                gfx.fillRect(self.x + 1, self.y + 1, 7, 7)
+            end
+            -- the 'circle'
+            gfx.drawLine(self.x, self.y + 2, self.x, self.y2 - 3)
+            gfx.drawLine(self.x2 - 1, self.y + 2, self.x2 - 1, self.y2 - 3)
+            gfx.drawLine(self.x + 2, self.y, self.x2 - 3, self.y)
+            gfx.drawLine(self.x + 2, self.y2 - 1, self.x2 - 3, self.y2 - 1)
+            gfx.drawLine(self.x + 1, self.y + 1, self.x + 1, self.y + 1)
+            gfx.drawLine(self.x + 1, self.y2 - 2, self.x + 1, self.y2 - 2)
+            gfx.drawLine(self.x2 - 2, self.y + 1, self.x2 - 2, self.y + 1)
+            gfx.drawLine(self.x2 - 2, self.y2 - 2, self.x2 - 2, self.y2 - 2)
+            -- that was the 'circle'
+            self.label:draw()
+        end
+    end
+    function rb:mousemove(x, y, dx, dy)
+        self.hover = ui.contains(x, y, self.x, self.y, self.x2 + 6 + self.label.w, self.y2)
+    end
+    function rb:mousedown(x, y, button)
+        self.held = self.hover
+    end
+    function rb:mouseup(x, y, button, reason)
+        if self.held then
+            self.held = false
+        end
+        if self.hover then
+            self.selected = true
+        end
+    end
+    return rb
+end
+
+ui.radio_group = function()
+    local rg = {
+        buttons = {},
+        selected = 0
+    }
+    function rg:add_button(butt)
+        table.insert(self.buttons, butt)
+    end
+    function rg:set_selected(n)
+        self.selected = n
+        for _, butt in ipairs(self.buttons) do
+            butt.selected = false
+        end
+        self.buttons[n].selected = true
+    end
+    function rg:draw()
+        for _, butt in ipairs(self.buttons) do
+            butt:draw(self)
+        end
+    end
+    function rg:mousemove(x, y, dx, dy)
+        for _, butt in ipairs(self.buttons) do
+            butt:mousemove(x, y, dx, dy)
+        end
+    end
+    function rg:mousedown(x, y, button)
+        for _, butt in ipairs(self.buttons) do
+            butt:mousedown(x, y, button)
+        end
+    end
+    function rg:mouseup(x, y, button, reason)
+        for i, butt in ipairs(self.buttons) do
+            butt:mouseup(x, y, button, reason)
+            if butt.hover then
+                self.selected = i
+                for _, other in ipairs(self.buttons) do
+                    if other ~= butt then
+                        other.selected = false
+                    end
+                end
+            end
+        end
+    end
+    return rg
 end
 
 return ui
