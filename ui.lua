@@ -29,7 +29,7 @@ ui.container = function()
     return c
 end
 
-ui.box = function(x, y, w, h)
+ui.box = function(x, y, w, h, r, g, b, a, draw_background, draw_border)
     local box = {
         x = x,
         y = y,
@@ -38,10 +38,10 @@ ui.box = function(x, y, w, h)
         x2 = x + w,
         y2 = y + h,
         visible = true,
-        draw_background = false,
-        draw_border = true,
-        border = {r = 255, g = 255, b = 255, a = 255},
-        background = {r = 0, g = 0, b = 0, a = 255},
+        draw_background = draw_background or false,
+        draw_border = draw_border or true,
+        border = {r = r or 255, g = g or 255, b = b or 255},
+        background = {r = r or 0, g = g or 0, b = b or 0, a = a or 255},
         drawlist = {}
     }
     function box:draw()
@@ -81,7 +81,7 @@ ui.text = function(x, y, text, r, g, b, a)
         y = y,
         text = text,
         visible = true,
-        color = {r = r, g = g, b = b, a = a},
+        color = {r = r or 255, g = g or 255, b = b or 255, a = a or 255},
         drawlist = {}
     }
     txt.w, txt.h = gfx.textSize(text)
@@ -90,6 +90,9 @@ ui.text = function(x, y, text, r, g, b, a)
     function txt:draw()
         if self.visible then
             gfx.drawText(self.x, self.y, self.text, self.color.r, self.color.g, self.color.b, self.color.a)
+            for _, f in ipairs(self.drawlist) do
+                f(self)
+            end
         end
     end
     function txt:drawadd(f)
@@ -115,7 +118,7 @@ ui.fixed_text = function(x, y, max_w, text, r, g, b, a)
         text = text,
         visible_text = '',
         visible = true,
-        color = {r = r, g = g, b = b, a = a},
+        color = {r = r or 255, g = g or 255, b = b or 255, a = a or 255},
         drawlist = {}
     }
     txt.w, txt.h = gfx.textSize(text)
@@ -131,6 +134,9 @@ ui.fixed_text = function(x, y, max_w, text, r, g, b, a)
                 self.real_x = self.x2 - tpt.textwidth(self.visible_text)
             end
             gfx.drawText(self.real_x, self.y, self.visible_text, self.color.r, self.color.g, self.color.b, self.color.a)
+            for _, f in ipairs(self.drawlist) do
+                f(self)
+            end
         end
     end
     function txt:drawadd(f)
@@ -157,6 +163,7 @@ ui.button = function(x, y, w, h, text, f, r, g, b)
     th = th - 4 -- for some reason it's 4 too many
     if w == 0 then w = tw + 7 end
     if h == 0 then h = th + 9 end
+    x, y = x - 1, y - 1
     local button = ui.box(x, y, w, h, r, g, b, a)
     button.enabled = true
     button.hover = false
@@ -164,7 +171,7 @@ ui.button = function(x, y, w, h, text, f, r, g, b)
     button.f = f
     button:set_border(r, g, b)
     button.label = ui.text(x + w/2 - tw/2, y + h/2 - th/2, text, r, g, b, a)
-    button.color = {r = r, g = g, b = b}
+    button.color = {r = r or 255, g = g or 255, b = b or 255},
     button:drawadd(function(self)
         local r, g, b = self.color.r, self.color.g, self.color.b
         if not self.enabled then 
@@ -206,6 +213,8 @@ ui.button = function(x, y, w, h, text, f, r, g, b)
             self.held = true
             self.x = self.x - 1
             self.y = self.y + 1
+            self.x2 = self.x2 - 1
+            self.y2 = self.y2 + 1
             self.label.x = self.label.x - 1
             self.label.y = self.label.y + 1
         end
@@ -215,6 +224,8 @@ ui.button = function(x, y, w, h, text, f, r, g, b)
             self.held = false
             self.x = self.x + 1
             self.y = self.y - 1
+            self.x2 = self.x2 + 1
+            self.y2 = self.y2 - 1
             self.label.x = self.label.x + 1
             self.label.y = self.label.y - 1
         end
@@ -232,7 +243,7 @@ ui.checkbox = function(x, y, text, r, g, b)
     cb.enabled = true
     cb.hover = false
     cb.held = false
-    cb.color = {r = r, g = g, b = b}
+    color = {r = r or 255, g = g or 255, b = b or 255},
     cb:set_backgroud(r, g, b)
     cb:drawadd(function (self)
         local r, g, b = self.color.r, self.color.g, self.color.b
@@ -282,14 +293,12 @@ ui.checkbox = function(x, y, text, r, g, b)
         self.held = self.hover and self.enabled
     end
     function cb:mouseup(x, y, button, reason)
-        if self.enabled then
-            if self.held then
-                self.held = false
-            end
-            if self.hover then
-                self.checked = not self.checked
-                self.draw_background = not self.draw_background
-            end
+        if self.held then
+            self.held = false
+        end
+        if self.hover then
+            self.checked = not self.checked
+            self.draw_background = not self.draw_background
         end
     end
     return cb
@@ -304,12 +313,13 @@ ui.radio_button = function(x, y, text, r, g, b, a)
         x2 = x + 9,
         y2 = y + 9,
         visible = true,
-        color = {r = r, g = g, b = b},
+        color = {r = r or 255, g = g or 255, b = b or 255},
         selected = false,
         label = ui.text(x + 14, y + 1, text, r, g, b, a),
         enabled = true,
         hover = false,
-        held = false
+        held = false,
+        drawlist = {}
     }
     function rb:draw()
         if self.visible then
@@ -322,10 +332,10 @@ ui.radio_button = function(x, y, text, r, g, b, a)
             end
             if self.selected then
                 gfx.fillRect(self.x + 2, self.y + 2, 5, 5, r, g, b)
-                gfx.drawPixel(self.x + 2, self.y + 2, 0, 0, 0)
-                gfx.drawPixel(self.x + 2, self.y2 - 3, 0, 0, 0)
-                gfx.drawPixel(self.x2 - 3, self.y + 2, 0, 0, 0)
-                gfx.drawPixel(self.x2 - 3, self.y2 - 3, 0, 0, 0)
+                gfx.drawPixel(self.x + 2, self.y + 2, 0, 0, 0) -- top left
+                gfx.drawPixel(self.x + 2, self.y2 - 3, 0, 0, 0) -- bottom left
+                gfx.drawPixel(self.x2 - 3, self.y + 2, 0, 0, 0) -- top right
+                gfx.drawPixel(self.x2 - 3, self.y2 - 3, 0, 0, 0) -- bottom right
             end
             if self.held then
                 gfx.fillRect(self.x + 1, self.y + 1, 7, 7, self.color.r, self.color.g, self.color.b)
@@ -341,7 +351,13 @@ ui.radio_button = function(x, y, text, r, g, b, a)
             gfx.drawPixel(self.x2 - 2, self.y2 - 2, r, g, b)
             -- that was the 'circle'
             self.label:draw()
+            for _, f in ipairs(self.drawlist) do
+                f(self)
+            end
         end
+    end
+    function rb:drawadd(f)
+        table.insert(self.drawlist, f)
     end
     function rb:set_color(r, g, b)
         self.label:set_color(r, g, b)
@@ -432,11 +448,125 @@ ui.radio_group = function()
     return rg
 end
 
+ui.switch = function(x, y, text, r, g, b, colorful)
+    local sw = {
+        x = x,
+        y = y,
+        w = 15,
+        h = 9,
+        x2 = x + 15,
+        y2 = y + 9,
+        visible = true,
+        color = {r = r or 255, g = g or 255, b = b or 255},
+        switched_on = false,
+        colorful = colorful or false,
+        label = ui.text(x + 20, y + 1, text, r, g, b, a),
+        enabled = true,
+        hover = false,
+        held = false,
+        drawlist = {}
+    }
+    function sw:draw()
+        if self.visible then
+            local r, g, b = self.color.r, self.color.g, self.color.b
+            if self.switched_on then 
+                if self.colorful then
+                    r, g, b = 0, 255, 0
+                end
+            else
+                r, g, b = self.color.r - 100, self.color.g - 100, self.color.b - 100
+                if self.colorful then
+                    r, g, b = 255, 0, 0
+                end
+            end
+            if not self.enabled then 
+                r, g, b = 100, 100, 100
+            end
+            if self.hover then
+                gfx.fillRect(self.x2 + 3, self.y - 1, self.label.w + 3, 11, self.color.r, self.color.g, self.color.b, 50)
+            end
+            
+            if self.switched_on then
+                gfx.fillRect(self.x + 8, self.y + 2, 5, 5, r, g, b)
+                gfx.drawPixel(self.x + 8, self.y + 2, 0, 0, 0) -- top left
+                gfx.drawPixel(self.x + 8, self.y2 - 3, 0, 0, 0) -- bottom left
+                gfx.drawPixel(self.x + 12, self.y + 2, 0, 0, 0) -- top right
+                gfx.drawPixel(self.x + 12, self.y2 - 3, 0, 0, 0) -- bottom right
+            else 
+                gfx.fillRect(self.x + 2, self.y + 2, 5, 5, r, g, b)
+                gfx.drawPixel(self.x + 2, self.y + 2, 0, 0, 0) -- top left
+                gfx.drawPixel(self.x + 2, self.y2 - 3, 0, 0, 0) -- bottom left
+                gfx.drawPixel(self.x + 6, self.y + 2, 0, 0, 0) -- top right
+                gfx.drawPixel(self.x + 6, self.y2 - 3, 0, 0, 0) -- bottom right
+            end
+            if self.held then
+                gfx.fillRect(self.x + 5, self.y + 2, 5, 5, r, g, b)
+                if self.switched_on then 
+                    gfx.drawPixel(self.x + 5, self.y + 2, 0, 0, 0) -- top left
+                    gfx.drawPixel(self.x + 5, self.y2 - 3, 0, 0, 0) -- bottom left
+                else
+                    gfx.drawPixel(self.x + 9, self.y + 2, 0, 0, 0) -- top right
+                    gfx.drawPixel(self.x + 9, self.y2 - 3, 0, 0, 0) -- bottom right
+                end
+            end
+            -- the 'circle'
+            gfx.drawLine(self.x, self.y + 2, self.x, self.y2 - 3, r, g, b) -- left
+            gfx.drawLine(self.x2 - 1, self.y + 2, self.x2 - 1, self.y2 - 3, r, g, b) -- right
+            gfx.drawLine(self.x + 2, self.y, self.x2 - 3, self.y, r, g, b) -- top
+            gfx.drawLine(self.x + 2, self.y2 - 1, self.x2 - 3, self.y2 - 1, r, g, b) -- bottom
+            gfx.drawPixel(self.x + 1, self.y + 1, r, g, b) -- top left
+            gfx.drawPixel(self.x + 1, self.y2 - 2, r, g, b) -- bottom left
+            gfx.drawPixel(self.x2 - 2, self.y + 1, r, g, b) -- top right
+            gfx.drawPixel(self.x2 - 2, self.y2 - 2, r, g, b) -- bottom right
+            -- that was the 'circle'
+            self.label:draw()
+            for _, f in ipairs(self.drawlist) do
+                f(self)
+            end
+        end
+    end
+    function box:drawadd(f)
+        table.insert(self.drawlist, f)
+    end
+    function sw:set_color(r, g, b)
+        self.label:set_color(r, g, b)
+        self.color = {
+            r = r,
+            g = g,
+            b = b
+        }
+    end
+    function sw:set_enabled(enabled)
+        self.enabled = enabled
+        if enabled then
+            self.label:set_color(self.color.r, self.color.g, self.color.b)
+        else
+            self.label:set_color(100, 100, 100)
+        end
+    end
+    function sw:mousemove(x, y, dx, dy)
+        self.hover = ui.contains(x, y, self.x, self.y, self.x2 + 6 + self.label.w, self.y2) and self.enabled
+    end
+    function sw:mousedown(x, y, button)
+        self.held = self.hover and self.enabled
+    end
+    function sw:mouseup(x, y, button, reason)
+        if self.held then
+            self.held = false
+        end
+        if self.hover then
+            self.switched_on = not self.switched_on
+        end
+    end
+    return sw
+end
+
 ui.inputbox = function(x, y, w, h, placeholder, r, g, b)
     local pw, ph = gfx.textSize(placeholder)
     ph = ph - 4 -- for some reason it's 4 too many
     if w == 0 then w = pw + 7 end
     if h == 0 then h = ph + 9 end
+    tpt.log(h)
     local ib = ui.box(x, y, w, h)
     ib.placeholder = ui.text(x + 4, y + h/2 - ph/2, placeholder, r, g, b, 100)
     ib.text = ui.fixed_text(x + 4, y + h/2 - ph/2, w - 8, '', r, g, b)
@@ -445,12 +575,10 @@ ui.inputbox = function(x, y, w, h, placeholder, r, g, b)
     ib.focus = false
     ib.cursor = 0
     ib.visible_cursor = 0
-    ib.color = {r = r, g = g, b = b}
+    ib.color = {r = r or 255, g = g or 255, b = b or 255},
     ib:set_backgroud(r, g, b)
     ib:drawadd(function (self)
-        local cursorx = tpt.textwidth(self.text.visible_text:sub(1, self.cursor)) + 5
-        
-        tpt.log(self.cursor, cursorx)
+        local cursorx = tpt.textwidth(self.text.visible_text:sub(1, self.cursor)) + 5   
         if self.hover and not self.focus then
             gfx.fillRect(self.x + 1, self.y + 1, self.w-2, self.h-2, self.color.r, self.color.g, self.color.b, 30)
         end
@@ -499,7 +627,6 @@ ui.inputbox = function(x, y, w, h, placeholder, r, g, b)
 		if self.cursor < 0 then self.cursor = 0 return end
 	end
     function ib:keypress(key, scan, rep, shift, ctrl, alt)
-        tpt.log(scan)
         local amt = 0
         -- Esc
 		if scan == 41 then
@@ -556,7 +683,19 @@ ui.inputbox = function(x, y, w, h, placeholder, r, g, b)
         self:move_cursor(1)
         return
     end
-
     return ib
 end
+
+ui.list = function(x, y, w, h, r, g, b, a)
+    local list = ui.box(x, y, w, h, r, g, b, a)
+    list.items = {}
+    list:drawadd(function(self)
+        
+    end)
+    function list:append(item, pos)
+        table.insert(self.items, pos or #self.items, item)
+    end
+    return list
+end
+
 return ui

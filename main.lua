@@ -13,25 +13,20 @@ local window = ui.box(mx, my, mw, mh)
 
 local credits = ui.text(mx2 - tpt.textwidth('v2.0,  created by Gienio aka Geniusz1') - 10, my + 10, 'v2.0, created by Gienio aka Geniusz1', 255, 255, 255, 100)
 
-local start_button = ui.button(mx + 10, my + 100, 0, 0,'START', function() tpt.log('I\'m cwicked! OwO') end)
-start_button:set_color(0, 255, 0)
-local check = ui.checkbox(mx + 10, my + 150, 'Will you check me, senpai? OwO')
-check:set_color(255, 0, 0)
-local rad1 = ui.radio_button(mx + 10, my + 170, 'Am I the one, senpai? UwU')
-local rad2 = ui.radio_button(mx + 10, my + 182, 'Or maybe it\'s me? OwO')
-local rad3 = ui.radio_button(mx + 10, my + 194, 'What about me? ^.^')
-local input = ui.inputbox(mx + 10, my + 206, 0, 0, 'Provide file name')
-local rgroup = ui.radio_group()
-rgroup:add_button(rad1)
-rgroup:add_button(rad2)
-rgroup:add_button(rad3)
+local input = ui.inputbox(mx + 10, my + 50, 100, 0, 'Provide file name')
+-- local search_button = ui.button(mx + 115, my + 50, 15, 15, '', function() end)
+-- search_button:drawadd(function(self)
+--     gfx.drawCircle(self.x + 6, self.y + 6, 4, 4)
+--     gfx.drawLine(self.x + 8, self.y + 8, self.x2 - 3, self.y2 - 3)
+-- end)
+
+local files = ui.list(mx + 10, my + 75, 100, 165)
 
 main:append(window)
 main:append(credits)
-main:append(start_button)
-main:append(check)
-main:append(rgroup)
 main:append(input)
+-- main:append(search_button)
+main:append(files)
 
 window.draw_background = true
 
