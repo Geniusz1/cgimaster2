@@ -4,6 +4,10 @@ ui.contains = function(x, y, a1, b1, a2, b2)
     return not (x < a1 or x > a2 or y < b1 or y > b2)
 end
 
+gfx.drawPixel = function(x, y, r, g, b, a)
+    gfx.drawLine(x, y, x, y, r, g, b, a)
+end
+
 ui.container = function()
     local c = {}
     c.children = {}
@@ -170,8 +174,7 @@ ui.button = function(x, y, w, h, text, f, r, g, b)
             gfx.fillRect(self.x + 1, self.y + 1, self.w-2, self.h-2, self.color.r, self.color.g, self.color.b, 70)
         end
         self.label:draw()
-        if not self.held then
-            
+        if not self.held then            
             gfx.drawLine(self.x, self.y2, self.x2-2, self.y2, r, g, b)
             gfx.drawLine(self.x-1, self.y + 1, self.x-1, self.y2, r, g, b)
         end
@@ -319,10 +322,10 @@ ui.radio_button = function(x, y, text, r, g, b, a)
             end
             if self.selected then
                 gfx.fillRect(self.x + 2, self.y + 2, 5, 5, r, g, b)
-                gfx.drawLine(self.x + 2, self.y + 2, self.x + 2, self.y + 2, 0, 0, 0)
-                gfx.drawLine(self.x + 2, self.y2 - 3, self.x + 2, self.y2 - 3, 0, 0, 0)
-                gfx.drawLine(self.x2 - 3, self.y + 2, self.x2 - 3, self.y + 2, 0, 0, 0)
-                gfx.drawLine(self.x2 - 3, self.y2 - 3, self.x2 - 3, self.y2 - 3, 0, 0, 0)
+                gfx.drawPixel(self.x + 2, self.y + 2, 0, 0, 0)
+                gfx.drawPixel(self.x + 2, self.y2 - 3, 0, 0, 0)
+                gfx.drawPixel(self.x2 - 3, self.y + 2, 0, 0, 0)
+                gfx.drawPixel(self.x2 - 3, self.y2 - 3, 0, 0, 0)
             end
             if self.held then
                 gfx.fillRect(self.x + 1, self.y + 1, 7, 7, self.color.r, self.color.g, self.color.b)
@@ -332,10 +335,10 @@ ui.radio_button = function(x, y, text, r, g, b, a)
             gfx.drawLine(self.x2 - 1, self.y + 2, self.x2 - 1, self.y2 - 3, r, g, b)
             gfx.drawLine(self.x + 2, self.y, self.x2 - 3, self.y, r, g, b)
             gfx.drawLine(self.x + 2, self.y2 - 1, self.x2 - 3, self.y2 - 1, r, g, b)
-            gfx.drawLine(self.x + 1, self.y + 1, self.x + 1, self.y + 1, r, g, b)
-            gfx.drawLine(self.x + 1, self.y2 - 2, self.x + 1, self.y2 - 2, r, g, b)
-            gfx.drawLine(self.x2 - 2, self.y + 1, self.x2 - 2, self.y + 1, r, g, b)
-            gfx.drawLine(self.x2 - 2, self.y2 - 2, self.x2 - 2, self.y2 - 2, r, g, b)
+            gfx.drawPixel(self.x + 1, self.y + 1, r, g, b)
+            gfx.drawPixel(self.x + 1, self.y2 - 2, r, g, b)
+            gfx.drawPixel(self.x2 - 2, self.y + 1, r, g, b)
+            gfx.drawPixel(self.x2 - 2, self.y2 - 2, r, g, b)
             -- that was the 'circle'
             self.label:draw()
         end
