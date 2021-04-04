@@ -162,13 +162,18 @@ ui.button = function(x, y, w, h, text, f, r, g, b)
     button.label = ui.text(x + w/2 - tw/2, y + h/2 - th/2, text, r, g, b, a)
     button.color = {r = r, g = g, b = b}
     button:drawadd(function(self)
-        if self.hover then
+        local r, g, b = self.color.r, self.color.g, self.color.b
+        if not self.enabled then 
+            r, g, b = 100, 100, 100
+        end
+        if self.enabled and self.hover then
             gfx.fillRect(self.x + 1, self.y + 1, self.w-2, self.h-2, self.color.r, self.color.g, self.color.b, 70)
         end
         self.label:draw()
         if not self.held then
-            gfx.drawLine(self.x, self.y2, self.x2-2, self.y2, self.color.r, self.color.g, self.color.b)
-            gfx.drawLine(self.x-1, self.y + 1, self.x-1, self.y2, self.color.r, self.color.g, self.color.b)
+            
+            gfx.drawLine(self.x, self.y2, self.x2-2, self.y2, r, g, b)
+            gfx.drawLine(self.x-1, self.y + 1, self.x-1, self.y2, r, g, b)
         end
     end)
     function button:set_color(r, g, b)
@@ -180,8 +185,18 @@ ui.button = function(x, y, w, h, text, f, r, g, b)
         }
         self:set_border(r, g, b)
     end
+    function button:set_enabled(enabled)
+        self.enabled = enabled
+        if enabled then
+            self.label:set_color(self.color.r, self.color.g, self.color.b)
+            self:set_border(self.color.r, self.color.g, self.color.b)
+        else
+            self.label:set_color(100, 100, 100)
+            self:set_border(100, 100, 100)
+        end
+    end
     function button:mousemove(x, y, dx, dy)
-        self.hover = ui.contains(x, y, self.x, self.y, self.x2, self.y2)
+        self.hover = ui.contains(x, y, self.x, self.y, self.x2, self.y2) and self.enabled
     end
     function button:mousedown(x, y, button)
         if self.hover then
@@ -211,11 +226,16 @@ ui.checkbox = function(x, y, text, r, g, b)
     local cb = ui.box(x, y, 9, 9)
     cb.checked = false
     cb.label = ui.text(x + 14, y + 1, text, r, g, b)
+    cb.enabled = true
     cb.hover = false
     cb.held = false
     cb.color = {r = r, g = g, b = b}
     cb:set_backgroud(r, g, b)
     cb:drawadd(function (self)
+        local r, g, b = self.color.r, self.color.g, self.color.b
+        if not self.enabled then 
+            r, g, b = 100, 100, 100
+        end
         if self.hover then
             gfx.fillRect(self.x2 + 3, self.y - 1, self.label.w + 3, 11, self.color.r, self.color.g, self.color.b, 50)
         end
@@ -230,7 +250,7 @@ ui.checkbox = function(x, y, text, r, g, b)
         if self.held then
             gfx.fillRect(self.x + 1, self.y + 1, 7, 7, self.color.r, self.color.g, self.color.b)
         end
-        gfx.drawRect(self.x, self.y, 9, 9, self.color.r, self.color.g, self.color.b)
+        gfx.drawRect(self.x, self.y, 9, 9, r, g, b)
         self.label:draw()
     end)
     function cb:set_color(r, g, b)
@@ -242,19 +262,31 @@ ui.checkbox = function(x, y, text, r, g, b)
         }
         self:set_backgroud(r, g, b)
     end
+    function cb:set_enabled(enabled)
+        self.enabled = enabled
+        if enabled then
+            self.label:set_color(self.color.r, self.color.g, self.color.b)
+            self:set_backgroud(self.color.r, self.color.g, self.color.b)
+        else
+            self.label:set_color(100, 100, 100)
+            self:set_backgroud(100, 100, 100)
+        end
+    end
     function cb:mousemove(x, y, dx, dy)
-        self.hover = ui.contains(x, y, self.x, self.y, self.x2 + 6 + self.label.w, self.y2)
+        self.hover = ui.contains(x, y, self.x, self.y, self.x2 + 6 + self.label.w, self.y2) and self.enabled
     end
     function cb:mousedown(x, y, button)
-        self.held = self.hover
+        self.held = self.hover and self.enabled
     end
     function cb:mouseup(x, y, button, reason)
-        if self.held then
-            self.held = false
-        end
-        if self.hover then
-            self.checked = not self.checked
-            self.draw_background = not self.draw_background
+        if self.enabled then
+            if self.held then
+                self.held = false
+            end
+            if self.hover then
+                self.checked = not self.checked
+                self.draw_background = not self.draw_background
+            end
         end
     end
     return cb
@@ -269,54 +301,66 @@ ui.radio_button = function(x, y, text, r, g, b, a)
         x2 = x + 9,
         y2 = y + 9,
         visible = true,
-        color = {r = r, g = g, b = b, a = a},
+        color = {r = r, g = g, b = b},
         selected = false,
         label = ui.text(x + 14, y + 1, text, r, g, b, a),
+        enabled = true,
         hover = false,
         held = false
     }
     function rb:draw()
         if self.visible then
+            local r, g, b = self.color.r, self.color.g, self.color.b
+            if not self.enabled then 
+                r, g, b = 100, 100, 100
+            end
             if self.hover then
                 gfx.fillRect(self.x2 + 3, self.y - 1, self.label.w + 3, 11, self.color.r, self.color.g, self.color.b, 50)
             end
             if self.selected then
-                gfx.fillRect(self.x + 2, self.y + 2, 5, 5, self.color.r, self.color.g, self.color.b, self.color.a)
+                gfx.fillRect(self.x + 2, self.y + 2, 5, 5, r, g, b)
                 gfx.drawLine(self.x + 2, self.y + 2, self.x + 2, self.y + 2, 0, 0, 0)
                 gfx.drawLine(self.x + 2, self.y2 - 3, self.x + 2, self.y2 - 3, 0, 0, 0)
                 gfx.drawLine(self.x2 - 3, self.y + 2, self.x2 - 3, self.y + 2, 0, 0, 0)
                 gfx.drawLine(self.x2 - 3, self.y2 - 3, self.x2 - 3, self.y2 - 3, 0, 0, 0)
             end
             if self.held then
-                gfx.fillRect(self.x + 1, self.y + 1, 7, 7, self.color.r, self.color.g, self.color.b, self.color.a)
+                gfx.fillRect(self.x + 1, self.y + 1, 7, 7, self.color.r, self.color.g, self.color.b)
             end
             -- the 'circle'
-            gfx.drawLine(self.x, self.y + 2, self.x, self.y2 - 3, self.color.r, self.color.g, self.color.b, self.color.a)
-            gfx.drawLine(self.x2 - 1, self.y + 2, self.x2 - 1, self.y2 - 3, self.color.r, self.color.g, self.color.b, self.color.a)
-            gfx.drawLine(self.x + 2, self.y, self.x2 - 3, self.y, self.color.r, self.color.g, self.color.b, self.color.a)
-            gfx.drawLine(self.x + 2, self.y2 - 1, self.x2 - 3, self.y2 - 1, self.color.r, self.color.g, self.color.b, self.color.a)
-            gfx.drawLine(self.x + 1, self.y + 1, self.x + 1, self.y + 1, self.color.r, self.color.g, self.color.b, self.color.a)
-            gfx.drawLine(self.x + 1, self.y2 - 2, self.x + 1, self.y2 - 2, self.color.r, self.color.g, self.color.b, self.color.a)
-            gfx.drawLine(self.x2 - 2, self.y + 1, self.x2 - 2, self.y + 1, self.color.r, self.color.g, self.color.b, self.color.a)
-            gfx.drawLine(self.x2 - 2, self.y2 - 2, self.x2 - 2, self.y2 - 2, self.color.r, self.color.g, self.color.b, self.color.a)
+            gfx.drawLine(self.x, self.y + 2, self.x, self.y2 - 3, r, g, b)
+            gfx.drawLine(self.x2 - 1, self.y + 2, self.x2 - 1, self.y2 - 3, r, g, b)
+            gfx.drawLine(self.x + 2, self.y, self.x2 - 3, self.y, r, g, b)
+            gfx.drawLine(self.x + 2, self.y2 - 1, self.x2 - 3, self.y2 - 1, r, g, b)
+            gfx.drawLine(self.x + 1, self.y + 1, self.x + 1, self.y + 1, r, g, b)
+            gfx.drawLine(self.x + 1, self.y2 - 2, self.x + 1, self.y2 - 2, r, g, b)
+            gfx.drawLine(self.x2 - 2, self.y + 1, self.x2 - 2, self.y + 1, r, g, b)
+            gfx.drawLine(self.x2 - 2, self.y2 - 2, self.x2 - 2, self.y2 - 2, r, g, b)
             -- that was the 'circle'
             self.label:draw()
         end
     end
-    function rb:set_color(r, g, b, a)
+    function rb:set_color(r, g, b)
         self.label:set_color(r, g, b)
         self.color = {
             r = r,
             g = g,
-            b = b,
-            a = a
+            b = b
         }
     end
+    function rb:set_enabled(enabled)
+        self.enabled = enabled
+        if enabled then
+            self.label:set_color(self.color.r, self.color.g, self.color.b)
+        else
+            self.label:set_color(100, 100, 100)
+        end
+    end
     function rb:mousemove(x, y, dx, dy)
-        self.hover = ui.contains(x, y, self.x, self.y, self.x2 + 6 + self.label.w, self.y2)
+        self.hover = ui.contains(x, y, self.x, self.y, self.x2 + 6 + self.label.w, self.y2) and self.enabled
     end
     function rb:mousedown(x, y, button)
-        self.held = self.hover
+        self.held = self.hover and self.enabled
     end
     function rb:mouseup(x, y, button, reason)
         if self.held then
@@ -333,6 +377,7 @@ ui.radio_group = function()
     local rg = {
         buttons = {},
         selected = 0,
+        enabled = true,
         visible = true
     }
     function rg:add_button(butt)
@@ -350,6 +395,12 @@ ui.radio_group = function()
             for _, butt in ipairs(self.buttons) do
                 butt:draw(self)
             end
+        end
+    end
+    function rg:set_enabled(enabled)
+        self.enabled = enabled
+        for _, butt in ipairs(self.buttons) do
+            butt:set_enabled(enabled)
         end
     end
     function rg:mousemove(x, y, dx, dy)
