@@ -13,15 +13,18 @@ local window = ui.box(mx, my, mw, mh)
 
 local credits = ui.text(mx2 - tpt.textwidth('v2.0,  created by Gienio aka Geniusz1') - 10, my + 10, 'v2.0, created by Gienio aka Geniusz1', 255, 255, 255, 100)
 
-local start_button = ui.button(mx + 10, my + 100, 38, 15,'START', function() tpt.log('I\'m cwicked! OwO') end)
-
+local start_button = ui.button(mx + 10, my + 100, 0, 0,'START', function() tpt.log('I\'m cwicked! OwO') end)
+start_button:set_color(0, 255, 0)
 local check = ui.checkbox(mx + 10, my + 150, 'Will you check me, senpai? OwO')
-
+check:set_color(255, 0, 0)
 local rad1 = ui.radio_button(mx + 10, my + 170, 'Am I the one, senpai? UwU')
 local rad2 = ui.radio_button(mx + 10, my + 182, 'Or maybe it\'s me? OwO')
+local rad3 = ui.radio_button(mx + 10, my + 194, 'OUmmmmmmmm? OwO')
+
 local rgroup = ui.radio_group()
 rgroup:add_button(rad1)
 rgroup:add_button(rad2)
+rgroup:add_button(rad3)
 
 main:append(window)
 main:append(credits)

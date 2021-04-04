@@ -91,7 +91,7 @@ ui.text = function(x, y, text, r, g, b, a)
     function txt:drawadd(f)
         table.insert(self.drawlist, f)
     end
-	function txt:setcolor(r, g, b, a) 
+	function txt:set_color(r, g, b, a) 
         self.color.r = r
         self.color.g = g
         self.color.b = b
@@ -104,25 +104,42 @@ ui.text = function(x, y, text, r, g, b, a)
 	return txt
 end
 
-ui.button = function(x, y, w, h, text, f)
-    local button = ui.box(x, y, w, h)
+ui.button = function(x, y, w, h, text, f, r, g, b)
+    local tw, th = gfx.textSize(text)
+    th = th - 4 -- for some reason it's 4 too many
+    if w == 0 then w = tw + 7 end
+    if h == 0 then h = th + 9 end
+    local button = ui.box(x, y, w, h, r, g, b, a)
     button.enabled = true
     button.hover = false
     button.held = false
     button.f = f
-    button.background = {r = 255, g = 255, b = 255, a = 60}
+    button:set_border(r, g, b)
+    button.label = ui.text(x + w/2 - tw/2, y + h/2 - th/2, text, r, g, b, a)
+    button.color = {r = r, g = g, b = b}
     button:drawadd(function(self)
-        local tw, th = gfx.textSize(text)
-        th = th - 3 -- for some reason it's 3 too many
         if self.hover then
-            gfx.fillRect(self.x+1, self.y+1, self.w-2, self.h-2, self.background.r, self.background.b, self.background.g, 70)
+            gfx.fillRect(self.x+1, self.y+1, self.w-2, self.h-2, self.color.r, self.color.g, self.color.b, 70)
         end
-        gfx.drawText(self.x + self.w/2 - tw/2, self.y + self.h/2 - th/2, text)
+        self.label:draw()
         if not self.held then
-            gfx.drawLine(self.x, self.y2, self.x2-2, self.y2)
-            gfx.drawLine(self.x-1, self.y+1, self.x-1, self.y2)
+            gfx.drawLine(self.x, self.y2, self.x2-2, self.y2, self.color.r, self.color.g, self.color.b)
+            gfx.drawLine(self.x-1, self.y+1, self.x-1, self.y2, self.color.r, self.color.g, self.color.b)
         end
     end)
+    function button:set_color(r, g, b)
+        self.label.color = {
+            r = r,
+            g = g,
+            b = b,
+        }
+        self.color = {
+            r = r,
+            g = g,
+            b = b,
+        }
+        self:set_border(r, g, b)
+    end
     function button:mousemove(x, y, dx, dy)
         self.hover = ui.contains(x, y, self.x, self.y, self.x2, self.y2)
     end
@@ -131,6 +148,8 @@ ui.button = function(x, y, w, h, text, f)
             self.held = true
             self.x = self.x - 1
             self.y = self.y + 1
+            self.label.x = self.label.x - 1
+            self.label.y = self.label.y + 1
         end
     end
     function button:mouseup(x, y, button, reason)
@@ -138,6 +157,8 @@ ui.button = function(x, y, w, h, text, f)
             self.held = false
             self.x = self.x + 1
             self.y = self.y - 1
+            self.label.x = self.label.x + 1
+            self.label.y = self.label.y - 1
         end
         if self.hover then
             self.f()
@@ -146,16 +167,17 @@ ui.button = function(x, y, w, h, text, f)
     return button
 end
 
-ui.checkbox = function(x, y, text, r, g, b, a)
+ui.checkbox = function(x, y, text, r, g, b)
     local cb = ui.box(x, y, 9, 9)
     cb.checked = false
-    cb.label = ui.text(x + 14, y + 1, text, r, g, b, a)
+    cb.label = ui.text(x + 14, y + 1, text, r, g, b)
     cb.hover = false
     cb.held = false
-    cb:set_backgroud(255, 255, 255)
+    cb.color = {r = r, g = g, b = b}
+    cb:set_backgroud(r, g, b, a)
     cb:drawadd(function (self)
         if self.hover then
-            gfx.fillRect(self.x2 + 3, self.y - 1, self.label.w + 3, 11, 40, 40, 40)
+            gfx.fillRect(self.x2 + 3, self.y - 1, self.label.w + 3, 11, self.color.r, self.color.g, self.color.b, 50)
         end
         if self.draw_background then
             gfx.drawLine(self.x + 1, self.y + 3, self.x + 3, self.y + 5, 0, 0, 0)
@@ -166,11 +188,24 @@ ui.checkbox = function(x, y, text, r, g, b, a)
             gfx.drawLine(self.x + 4, self.y + 6, self.x2 - 1, self.y + 2, 0, 0, 0)
         end
         if self.held then
-            gfx.fillRect(self.x + 1, self.y + 1, 7, 7)
+            gfx.fillRect(self.x + 1, self.y + 1, 7, 7, self.color.r, self.color.g, self.color.b)
         end
-        gfx.drawRect(self.x, self.y, 9, 9)
+        gfx.drawRect(self.x, self.y, 9, 9, self.color.r, self.color.g, self.color.b)
         self.label:draw()
     end)
+    function cb:set_color(r, g, b)
+        self.label.color = {
+            r = r,
+            g = g,
+            b = b
+        }
+        self.color = {
+            r = r,
+            g = g,
+            b = b
+        }
+        self:set_backgroud(r, g, b)
+    end
     function cb:mousemove(x, y, dx, dy)
         self.hover = ui.contains(x, y, self.x, self.y, self.x2 + 6 + self.label.w, self.y2)
     end
@@ -198,7 +233,7 @@ ui.radio_button = function(x, y, text, r, g, b, a)
         x2 = x + 9,
         y2 = y + 9,
         visible = true,
-        background = {r = 255, g = 255, b = 255, a = 255},
+        color = {r = r, g = g, b = b, a = a},
         selected = false,
         label = ui.text(x + 14, y + 1, text, r, g, b, a),
         hover = false,
@@ -207,30 +242,44 @@ ui.radio_button = function(x, y, text, r, g, b, a)
     function rb:draw()
         if self.visible then
             if self.hover then
-                gfx.fillRect(self.x2 + 3, self.y - 1, self.label.w + 3, 11, 40, 40, 40)
+                gfx.fillRect(self.x2 + 3, self.y - 1, self.label.w + 3, 11, self.color.r, self.color.g, self.color.b, 50)
             end
             if self.selected then
-                gfx.fillRect(self.x + 2, self.y + 2, 5, 5)
+                gfx.fillRect(self.x + 2, self.y + 2, 5, 5, self.color.r, self.color.g, self.color.b, self.color.a)
                 gfx.drawLine(self.x + 2, self.y + 2, self.x + 2, self.y + 2, 0, 0, 0)
                 gfx.drawLine(self.x + 2, self.y2 - 3, self.x + 2, self.y2 - 3, 0, 0, 0)
                 gfx.drawLine(self.x2 - 3, self.y + 2, self.x2 - 3, self.y + 2, 0, 0, 0)
                 gfx.drawLine(self.x2 - 3, self.y2 - 3, self.x2 - 3, self.y2 - 3, 0, 0, 0)
             end
             if self.held then
-                gfx.fillRect(self.x + 1, self.y + 1, 7, 7)
+                gfx.fillRect(self.x + 1, self.y + 1, 7, 7, self.color.r, self.color.g, self.color.b, self.color.a)
             end
             -- the 'circle'
-            gfx.drawLine(self.x, self.y + 2, self.x, self.y2 - 3)
-            gfx.drawLine(self.x2 - 1, self.y + 2, self.x2 - 1, self.y2 - 3)
-            gfx.drawLine(self.x + 2, self.y, self.x2 - 3, self.y)
-            gfx.drawLine(self.x + 2, self.y2 - 1, self.x2 - 3, self.y2 - 1)
-            gfx.drawLine(self.x + 1, self.y + 1, self.x + 1, self.y + 1)
-            gfx.drawLine(self.x + 1, self.y2 - 2, self.x + 1, self.y2 - 2)
-            gfx.drawLine(self.x2 - 2, self.y + 1, self.x2 - 2, self.y + 1)
-            gfx.drawLine(self.x2 - 2, self.y2 - 2, self.x2 - 2, self.y2 - 2)
+            gfx.drawLine(self.x, self.y + 2, self.x, self.y2 - 3, self.color.r, self.color.g, self.color.b, self.color.a)
+            gfx.drawLine(self.x2 - 1, self.y + 2, self.x2 - 1, self.y2 - 3, self.color.r, self.color.g, self.color.b, self.color.a)
+            gfx.drawLine(self.x + 2, self.y, self.x2 - 3, self.y, self.color.r, self.color.g, self.color.b, self.color.a)
+            gfx.drawLine(self.x + 2, self.y2 - 1, self.x2 - 3, self.y2 - 1, self.color.r, self.color.g, self.color.b, self.color.a)
+            gfx.drawLine(self.x + 1, self.y + 1, self.x + 1, self.y + 1, self.color.r, self.color.g, self.color.b, self.color.a)
+            gfx.drawLine(self.x + 1, self.y2 - 2, self.x + 1, self.y2 - 2, self.color.r, self.color.g, self.color.b, self.color.a)
+            gfx.drawLine(self.x2 - 2, self.y + 1, self.x2 - 2, self.y + 1, self.color.r, self.color.g, self.color.b, self.color.a)
+            gfx.drawLine(self.x2 - 2, self.y2 - 2, self.x2 - 2, self.y2 - 2, self.color.r, self.color.g, self.color.b, self.color.a)
             -- that was the 'circle'
             self.label:draw()
         end
+    end
+    function rb:set_color(r, g, b, a)
+        self.label.color = {
+            r = r,
+            g = g,
+            b = b,
+            a = a
+        }
+        self.color = {
+            r = r,
+            g = g,
+            b = b,
+            a = a
+        }
     end
     function rb:mousemove(x, y, dx, dy)
         self.hover = ui.contains(x, y, self.x, self.y, self.x2 + 6 + self.label.w, self.y2)
@@ -295,4 +344,6 @@ ui.radio_group = function()
     return rg
 end
 
+ui.inputbox = function(x, y, w, h, r, g, b)
+end
 return ui
