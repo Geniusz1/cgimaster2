@@ -85,7 +85,7 @@ ui.text = function(x, y, text, r, g, b, a)
     txt.y2 = y + txt.h
     function txt:draw()
         if self.visible then
-            gfx.drawText(self.x, self.y, text, self.color.r, self.color.g, self.color.b, self.color.a)
+            gfx.drawText(self.x, self.y, self.text, self.color.r, self.color.g, self.color.b, self.color.a)
         end
     end
     function txt:drawadd(f)
@@ -97,9 +97,53 @@ ui.text = function(x, y, text, r, g, b, a)
         self.color.b = b
         self.color.a = a
     end
-    function txt:settext(text) 
+    function txt:set_text(text) 
         self.text = text
         self.w, self.h = gfx.textSize(text)
+    end
+	return txt
+end
+
+ui.fixed_text = function(x, y, max_w, text, r, g, b, a)
+    local txt = {
+        x = x,
+        y = y,
+        text = text,
+        visible_text = '',
+        visible = true,
+        color = {r = r, g = g, b = b, a = a},
+        drawlist = {}
+    }
+    txt.w, txt.h = gfx.textSize(text)
+    txt.real_x = x
+    txt.max_w = max_w
+    txt.x2 = x + max_w - 1
+    txt.y2 = y + txt.h
+    function txt:draw()
+        if self.visible then
+            self.real_x = self.x
+            gfx.drawLine(self.x, self.y-2, self.x2, self.y-2, 255, 0, 0)
+            if tpt.textwidth(self.text) > self.max_w then
+                self.real_x = self.x2 - tpt.textwidth(self.visible_text)
+            end
+            gfx.drawText(self.real_x, self.y, self.visible_text, self.color.r, self.color.g, self.color.b, self.color.a)
+        end
+    end
+    function txt:drawadd(f)
+        table.insert(self.drawlist, f)
+    end
+	function txt:set_color(r, g, b, a) 
+        self.color.r = r
+        self.color.g = g
+        self.color.b = b
+        self.color.a = a
+    end
+    function txt:set_text(text) 
+        self.text = text
+        self.visible_text = text
+        while tpt.textwidth(self.visible_text) > self.max_w do
+            self.visible_text = self.visible_text:sub(2)
+        end
     end
 	return txt
 end
@@ -119,20 +163,16 @@ ui.button = function(x, y, w, h, text, f, r, g, b)
     button.color = {r = r, g = g, b = b}
     button:drawadd(function(self)
         if self.hover then
-            gfx.fillRect(self.x+1, self.y+1, self.w-2, self.h-2, self.color.r, self.color.g, self.color.b, 70)
+            gfx.fillRect(self.x + 1, self.y + 1, self.w-2, self.h-2, self.color.r, self.color.g, self.color.b, 70)
         end
         self.label:draw()
         if not self.held then
             gfx.drawLine(self.x, self.y2, self.x2-2, self.y2, self.color.r, self.color.g, self.color.b)
-            gfx.drawLine(self.x-1, self.y+1, self.x-1, self.y2, self.color.r, self.color.g, self.color.b)
+            gfx.drawLine(self.x-1, self.y + 1, self.x-1, self.y2, self.color.r, self.color.g, self.color.b)
         end
     end)
     function button:set_color(r, g, b)
-        self.label.color = {
-            r = r,
-            g = g,
-            b = b,
-        }
+        self.label:set_color(r, g, b)
         self.color = {
             r = r,
             g = g,
@@ -174,7 +214,7 @@ ui.checkbox = function(x, y, text, r, g, b)
     cb.hover = false
     cb.held = false
     cb.color = {r = r, g = g, b = b}
-    cb:set_backgroud(r, g, b, a)
+    cb:set_backgroud(r, g, b)
     cb:drawadd(function (self)
         if self.hover then
             gfx.fillRect(self.x2 + 3, self.y - 1, self.label.w + 3, 11, self.color.r, self.color.g, self.color.b, 50)
@@ -194,11 +234,7 @@ ui.checkbox = function(x, y, text, r, g, b)
         self.label:draw()
     end)
     function cb:set_color(r, g, b)
-        self.label.color = {
-            r = r,
-            g = g,
-            b = b
-        }
+        self.label:set_color(r, g, b)
         self.color = {
             r = r,
             g = g,
@@ -268,12 +304,7 @@ ui.radio_button = function(x, y, text, r, g, b, a)
         end
     end
     function rb:set_color(r, g, b, a)
-        self.label.color = {
-            r = r,
-            g = g,
-            b = b,
-            a = a
-        }
+        self.label:set_color(r, g, b)
         self.color = {
             r = r,
             g = g,
@@ -301,7 +332,8 @@ end
 ui.radio_group = function()
     local rg = {
         buttons = {},
-        selected = 0
+        selected = 0,
+        visible = true
     }
     function rg:add_button(butt)
         table.insert(self.buttons, butt)
@@ -314,8 +346,10 @@ ui.radio_group = function()
         self.buttons[n].selected = true
     end
     function rg:draw()
-        for _, butt in ipairs(self.buttons) do
-            butt:draw(self)
+        if self.visible then
+            for _, butt in ipairs(self.buttons) do
+                butt:draw(self)
+            end
         end
     end
     function rg:mousemove(x, y, dx, dy)
@@ -344,6 +378,131 @@ ui.radio_group = function()
     return rg
 end
 
-ui.inputbox = function(x, y, w, h, r, g, b)
+ui.inputbox = function(x, y, w, h, placeholder, r, g, b)
+    local pw, ph = gfx.textSize(placeholder)
+    ph = ph - 4 -- for some reason it's 4 too many
+    if w == 0 then w = pw + 7 end
+    if h == 0 then h = ph + 9 end
+    local ib = ui.box(x, y, w, h)
+    ib.placeholder = ui.text(x + 4, y + h/2 - ph/2, placeholder, r, g, b, 100)
+    ib.text = ui.fixed_text(x + 4, y + h/2 - ph/2, w - 8, '', r, g, b)
+    ib.hover = false
+    ib.held = false
+    ib.focus = false
+    ib.cursor = 0
+    ib.visible_cursor = 0
+    ib.color = {r = r, g = g, b = b}
+    ib:set_backgroud(r, g, b)
+    ib:drawadd(function (self)
+        local cursorx = tpt.textwidth(self.text.visible_text:sub(1, self.cursor)) + 5
+        
+        tpt.log(self.cursor, cursorx)
+        if self.hover and not self.focus then
+            gfx.fillRect(self.x + 1, self.y + 1, self.w-2, self.h-2, self.color.r, self.color.g, self.color.b, 30)
+        end
+        if self.focus then
+            gfx.fillRect(self.x + 1, self.y + 1, self.w-2, self.h-2, self.color.r, self.color.g, self.color.b, 30)
+            gfx.drawLine(self.x + cursorx,self.y + 2,self.x + cursorx,self.y2-3, self.color.r, self.color.g, self.color.b)
+        end
+        if #self.text.text ~= 0  then
+            self.text:draw()
+        end
+        if not self.focus and #self.text.text == 0 then
+            self.placeholder:draw()
+        end
+    end)
+    function ib:set_color(r, g, b)
+        self.placeholder:set_color(r, g, b, 100)
+        self.text:set_color(r, g, b)
+        self.color = {
+            r = r,
+            g = g,
+            b = b
+        }
+        self:set_backgroud(r, g, b)
+        self:set_border(r, g, b)
+    end
+    function ib:mousemove(x, y, dx, dy)
+        self.hover = ui.contains(x, y, self.x, self.y, self.x2, self.y2)
+    end
+    function ib:mousedown(x, y, button)
+        self.held = self.hover
+        if self.hover then
+            self.focus = true
+        end
+    end
+    function ib:mouseup(x, y, button, reason)
+        -- if self.held then
+        --     self.held = false
+        -- end
+        if not self.hover then
+            self.focus = false
+        end
+    end
+    function ib:move_cursor(amt)
+		self.cursor = self.cursor + amt
+		if self.cursor > #self.text.text then self.cursor = #self.text.text end
+		if self.cursor < 0 then self.cursor = 0 return end
+	end
+    function ib:keypress(key, scan, rep, shift, ctrl, alt)
+        tpt.log(scan)
+        local amt = 0
+        -- Esc
+		if scan == 41 then
+			self.focus = false
+		-- Enter
+		elseif scan == 40 and not rep then
+			self.focus = false
+		-- Right
+		elseif scan == 79 then
+			amt = amt + 1
+			--self.t:update(nil, self.cursor)
+		-- Left
+		elseif scan == 80 then
+			amt = amt - 1
+			--self.t:update(nil, self.cursor)
+		end
+
+		local newstr
+		-- Backspace
+		if scan == 42 then
+			if self.cursor > 0 then
+				newstr = self.text.text:sub(1,self.cursor-1)..self.text.text:sub(self.cursor + 1)
+				amt = amt - 1
+			end
+		-- Delete
+		elseif scan == 76 then
+			newstr = self.text.text:sub(1,self.cursor)..self.text.text:sub(self.cursor + 2)
+		-- CTRL + C
+		elseif scan == 6 and ctrl then
+			platform.clipboardPaste(self.text.text)
+		-- CTRL + V
+		elseif scan == 25 and ctrl then
+			local paste = platform.clipboardCopy()
+			newstr = self.text.text:sub(1, self.cursor)..paste..self.text.text:sub(self.cursor + 1)
+			amt = amt + #paste
+		-- CTRL + X
+		elseif scan == 27 and ctrl then
+			platform.clipboardPaste(self.text.text)
+			self.cursor = 0
+		end
+        if newstr then
+			self.text:set_text(newstr) 
+		end
+        self:move_cursor(amt)
+        return
+    end
+    function ib:textinput(text)
+        if not self.focus then
+			return
+		end
+        --if #text > 1 or string.byte(text) < 20 or string.byte(text) > 126 then return end
+        newstr = self.text.text:sub(1, self.cursor)..text..self.text.text:sub(self.cursor + 1)
+        self.text:set_text(newstr)
+        self:move_cursor(1)
+        return
+    end
+
+    return ib
 end
 return ui

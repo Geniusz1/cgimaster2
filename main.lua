@@ -19,8 +19,8 @@ local check = ui.checkbox(mx + 10, my + 150, 'Will you check me, senpai? OwO')
 check:set_color(255, 0, 0)
 local rad1 = ui.radio_button(mx + 10, my + 170, 'Am I the one, senpai? UwU')
 local rad2 = ui.radio_button(mx + 10, my + 182, 'Or maybe it\'s me? OwO')
-local rad3 = ui.radio_button(mx + 10, my + 194, 'OUmmmmmmmm? OwO')
-
+local rad3 = ui.radio_button(mx + 10, my + 194, 'What about me? ^.^')
+local input = ui.inputbox(mx + 10, my + 206, 0, 0, 'Provide file name')
 local rgroup = ui.radio_group()
 rgroup:add_button(rad1)
 rgroup:add_button(rad2)
@@ -31,6 +31,7 @@ main:append(credits)
 main:append(start_button)
 main:append(check)
 main:append(rgroup)
+main:append(input)
 
 window.draw_background = true
 
@@ -76,17 +77,27 @@ local function mousedown(x, y, button)
 end
 
 local function keypress(key, scan, rep, shift, ctrl, alt)
+    main:handle_event('keypress', key, scan, rep, shift, ctrl, alt)
     if scan == 18 and ctrl and shift then
         enabled = true
     elseif scan == 41 and enabled then
         enabled = false
         return false
     end
-    if not enabled then return end
+    return not enabled
 end
+
+local function textinput(text)
+    if enabled then
+        main:handle_event('textinput', text)
+    end
+    return not enabled
+end
+
 
 evt.register(evt.keypress, keypress)
 evt.register(evt.tick, tick)
 evt.register(evt.mouseup, mouseup)
 evt.register(evt.mousedown, mousedown)
 evt.register(evt.mousemove, mousemove)
+evt.register(evt.textinput, textinput)
