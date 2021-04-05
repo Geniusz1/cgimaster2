@@ -1,5 +1,5 @@
 require('scripts.CGImaster2.pngLua.png')
-require('scripts.CGImaster2.ui')
+require('scripts.Powderface.Powderface')
 
 local mw, mh = 400, 255
 local mx, my = gfx.WIDTH/2 - mw/2, gfx.HEIGHT/2 - mh/2
