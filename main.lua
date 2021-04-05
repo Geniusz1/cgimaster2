@@ -1,7 +1,7 @@
 require('scripts.CGImaster2.pngLua.png')
 require('scripts.CGImaster2.ui')
 
-local mw, mh = 400, 250
+local mw, mh = 400, 255
 local mx, my = gfx.WIDTH/2 - mw/2, gfx.HEIGHT/2 - mh/2
 local mx2, my2 = mx + mw, my + mh
 
@@ -20,7 +20,15 @@ local input = ui.inputbox(mx + 10, my + 50, 100, 0, 'Provide file name')
 --     gfx.drawLine(self.x + 8, self.y + 8, self.x2 - 3, self.y2 - 3)
 -- end)
 
-local files = ui.list(mx + 10, my + 75, 100, 165)
+local files = ui.list(mx + 10, my + 75, 100, 170, false)
+
+for i = 1, 20 do   
+    --local item = ui.text(files.x, files.y, i..' item')
+    local item = ui.box(files.x, files.y, files.w - 8, 10)
+    item.label = ui.text(item.x, item.y, i..' item')
+    item:drawadd(function(self) self.label:draw() end)
+    files:append(item)
+end
 
 main:append(window)
 main:append(credits)
@@ -43,7 +51,7 @@ local function tick()
         for x = 1, logo.width do
             for y = 1, logo.height do
                 local pix = logo:getPixel(x, y)
-                gfx.drawRect(mx + x + 5, my + y + 5, 1, 1, pix.R, pix.G, pix.B,  pix.A)
+                gfx.drawPixel(mx + x + 5, my + y + 5, pix.R, pix.G, pix.B,  pix.A)
             end
         end
     end
@@ -70,6 +78,13 @@ local function mousedown(x, y, button)
         return false  
     end
 end
+local function mousewheel(x, y, d)
+    if enabled then 
+        main:handle_event('mousewheel', x, y, d)
+        return false  
+    end
+end
+
 
 local function keypress(key, scan, rep, shift, ctrl, alt)
     main:handle_event('keypress', key, scan, rep, shift, ctrl, alt)
@@ -96,3 +111,4 @@ evt.register(evt.mouseup, mouseup)
 evt.register(evt.mousedown, mousedown)
 evt.register(evt.mousemove, mousemove)
 evt.register(evt.textinput, textinput)
+evt.register(evt.mousewheel, mousewheel)

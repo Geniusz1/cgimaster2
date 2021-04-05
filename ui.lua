@@ -1,3 +1,5 @@
+require('socket')
+
 ui = {}
 
 ui.contains = function(x, y, a1, b1, a2, b2)
@@ -82,7 +84,8 @@ ui.text = function(x, y, text, r, g, b, a)
         text = text,
         visible = true,
         color = {r = r or 255, g = g or 255, b = b or 255, a = a or 255},
-        drawlist = {}
+        drawlist = {},
+        hover = false
     }
     txt.w, txt.h = gfx.textSize(text)
     txt.x2 = x + txt.w
@@ -97,6 +100,9 @@ ui.text = function(x, y, text, r, g, b, a)
     end
     function txt:drawadd(f)
         table.insert(self.drawlist, f)
+    end
+    function txt:mousemove(x, y, dx, dy)
+        self.hover = ui.contains(x, y, self.x, self.y, self.x2, self.y2)
     end
 	function txt:set_color(r, g, b, a) 
         self.color.r = r
@@ -574,6 +580,7 @@ ui.inputbox = function(x, y, w, h, placeholder, r, g, b)
     ib.held = false
     ib.focus = false
     ib.cursor = 0
+    ib.cursor_moving = false
     ib.visible_cursor = 0
     ib.color = {r = r or 255, g = g or 255, b = b or 255},
     ib:set_backgroud(r, g, b)
@@ -584,7 +591,11 @@ ui.inputbox = function(x, y, w, h, placeholder, r, g, b)
         end
         if self.focus then
             gfx.fillRect(self.x + 1, self.y + 1, self.w-2, self.h-2, self.color.r, self.color.g, self.color.b, 30)
-            gfx.drawLine(self.x + cursorx,self.y + 2,self.x + cursorx,self.y2-3, self.color.r, self.color.g, self.color.b)
+            if math.floor(socket.gettime()*2) % 2 == 0 and not self.cursor_moving then
+                gfx.drawLine(self.x + cursorx,self.y + 2,self.x + cursorx,self.y2-3, self.color.r, self.color.g, self.color.b)
+            elseif self.cursor_moving then
+                gfx.drawLine(self.x + cursorx,self.y + 2,self.x + cursorx,self.y2-3, self.color.r, self.color.g, self.color.b)
+            end
         end
         if #self.text.text ~= 0  then
             self.text:draw()
@@ -592,6 +603,7 @@ ui.inputbox = function(x, y, w, h, placeholder, r, g, b)
         if not self.focus and #self.text.text == 0 then
             self.placeholder:draw()
         end
+        self.cursor_moving = false
     end)
     function ib:set_color(r, g, b)
         self.placeholder:set_color(r, g, b, 100)
@@ -637,10 +649,12 @@ ui.inputbox = function(x, y, w, h, placeholder, r, g, b)
 		-- Right
 		elseif scan == 79 then
 			amt = amt + 1
+            self.cursor_moving = true
 			--self.t:update(nil, self.cursor)
 		-- Left
 		elseif scan == 80 then
 			amt = amt - 1
+            self.cursor_moving = true
 			--self.t:update(nil, self.cursor)
 		end
 
@@ -686,14 +700,61 @@ ui.inputbox = function(x, y, w, h, placeholder, r, g, b)
     return ib
 end
 
-ui.list = function(x, y, w, h, r, g, b, a)
+ui.list = function(x, y, w, h, draw_separator, r, g, b, a)
     local list = ui.box(x, y, w, h, r, g, b, a)
     list.items = {}
+    list.visible_items = {}
+    list.scrollbar_pos = 1
+    list.hover = false
+    list.draw_separator = draw_separator or false
+    local max_items = 1
     list:drawadd(function(self)
+        for i, item in ipairs(self.visible_items) do
+            item.y = self.y + item.h*(i - 1) + 4*(i - 1) + 4
+            item.y2 = item.y + item.h
+            item.x = self.x + 4
+            item.x2 = item.x + item.w
+            if self.draw_separator then
+                item.y = item.y + i
+            end
+            item:draw()
+            if self.draw_separator then
+                gfx.drawLine(self.x, item.y2 , self.x2 - 1, item.y2 , self.border.r, self.border.g, self.border.b, self.border.a)
+            end
+        end
+        for i, item in ipairs(self.visible_items) do
+            if item.y2 <= self.y2 then
+                max_items = i
+            end
+        end
+        local pos = self.scrollbar_pos + max_items - 1
+        self.visible_items = {unpack(self.items, self.scrollbar_pos, pos)}
+        --print(self.scrollbar_pos)
+        print(self.scrollbar_pos, max_items)
         
     end)
     function list:append(item, pos)
-        table.insert(self.items, pos or #self.items, item)
+        table.insert(self.items, pos or #self.items + 1, item)
+        max_items = max_items + 1
+    end
+    function list:mousemove(x, y, dx, dy)
+        self.hover = ui.contains(x, y, self.x, self.y, self.x2, self.y2)
+        for _, item in ipairs(self.items) do
+            if item['mousemove'] then
+                item:mousemove(x, y, dx, dy)
+            end
+        end
+        -- TODO automate event handling
+    end
+    function list:mousewheel(x, y, d)
+        if self.hover then
+            self.scrollbar_pos = self.scrollbar_pos - d
+            if self.scrollbar_pos < 1 then
+                self.scrollbar_pos = 1
+            elseif #self.items - self.scrollbar_pos + 1 < #self.visible_items then
+                self.scrollbar_pos = self.scrollbar_pos + d
+            end
+       end
     end
     return list
 end
