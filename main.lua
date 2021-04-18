@@ -39,32 +39,13 @@ local input = ui.inputbox(mx + 10, my + 50, 200, 0, 'Provide file name or path')
 --     gfx.drawLine(self.x + 8, self.y + 8, self.x2 - 3, self.y2 - 3)
 -- end)
 
-local files = ui.list(mx + 10, my + 75, 200, 169)
+local files = ui.list(mx + 10, my + 75, 200, 167, false, true, 0, 0)
 
 if platform then
 	OS = platform.platform()
-	if OS ~= "WIN32" and OS ~= "WIN64" then
-		PATH_SEP = '/'
-	end
-	EXE_NAME = platform.exeName()
-	local temp = EXE_NAME:reverse():find(PATH_SEP)
-	EXE_NAME = EXE_NAME:sub(#EXE_NAME-temp+2)
 else
-	if os.getenv('HOME') then
-		PATH_SEP = '/'
-		if fs.exists("/Applications") then
-			OS = "MACOSX"
-		else
-			OS = "LIN64"
-		end
-	end
-	if OS == "WIN32" or OS == "WIN64" then
-		EXE_NAME = jacobsmod and "Jacob1\'s Mod.exe" or "Powder.exe"
-	elseif OS == "MACOSX" then
-		EXE_NAME = "powder-x" --can't restart on OS X (if using < 91.0)
-	else
-		EXE_NAME = jacobsmod and "Jacob1\'s Mod" or "powder"
-	end
+    tpt.throw_error('CGImaster2 requires presence of the platform API')
+    return
 end
 
 function scandir(directory)
@@ -73,35 +54,54 @@ function scandir(directory)
     if OS:sub(1, 3) == 'WIN' then
         dir = 'dir "'..directory..'" /b /ad'
     else
-        dir = 'ls "'..directory..'"'
+        dir = 'ls -A --file-type "'..directory..'"'
     end
-    local pfile = popen('ls -A --file-type "'..directory..'"')
+    local pfile = popen(dir)
     for filename in pfile:lines() do
         local is_dir = filename:sub(#filename) == '/'
         if not (filename:find("%.png$") or is_dir) then
             goto continue
         end
-        if is_dir then
-            table.insert(t, 1, filename)
-        else
-            table.insert(t, filename)
-        end
+        table.insert(t, filename)
         ::continue::
+    end
+    for i, v in ipairs(t) do -- move folders to the top
+        local is_dir = v:sub(#v) == '/'
+        if is_dir then
+            temp_t = {unpack(t, i)}
+            for _, v in ipairs({unpack(t, 1, i - 1)}) do
+                table.insert(temp_t, v)
+            end
+            t = temp_t
+            break
+        end
     end
     pfile:close()
     return t
 end
 
-for _, v in ipairs(scandir('./')) do   
-    --local item = ui.text(files.x, files.y, i..' item')
-    print(v)
-    local item = ui.text(files.x, files.y, v)
-    function item:mousemove(x, y, dx, dy)
-        self.hover = ui.contains(x, y, self.x - 3, self.y - 1, files.x2 - 4, self.y2 + 1)
+sfile = function(fullpath)
+    local file = ui.flat_button(files.x, files.y, files.w - 6, 15, fullpath, function() end, 'left')
+    file.fullpath = fullpath
+    file.is_selected = false
+    function file:set_selected(selected)
+        self.is_selected = selected == true and true or false -- so that is_selected is always a bool
     end
-    item:drawadd(function(self)
-        if self.hover then gfx.fillRect(self.x - 3, self.y - 3, files.w - 6, self.h + 3, 255, 255, 255, 50) end
+    file:drawadd(function(self)
+        if self.is_selected then
+            gfx.drawRect(self.x, self.y, self.w, self.h, 255, 255, 255, 155)
+        end
     end)
+    file:set_function(function()
+        file:set_selected(true)
+    end)
+    file:set_border(0, 0, 0, 0)
+    return file
+end
+    
+
+for _, v in ipairs(scandir('/')) do   
+    local item = sfile(v)
     files:append(item)
 end
 
