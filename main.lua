@@ -32,14 +32,19 @@ end
 
 local credits = ui.text(mx2 - tpt.textwidth('v2.0,  created by Gienio aka Geniusz1') - 35, my + 10, 'v2.0, created by Gienio aka Geniusz1', 255, 255, 255, 100)
 
-local input = ui.inputbox(mx + 10, my + 50, 200, 0, 'Provide file name or path')
--- local search_button = ui.button(mx + 115, my + 50, 15, 15, '', function() end)
--- search_button:drawadd(function(self)
---     gfx.drawCircle(self.x + 6, self.y + 6, 4, 4)
---     gfx.drawLine(self.x + 8, self.y + 8, self.x2 - 3, self.y2 - 3)
--- end)
+local input = ui.inputbox(mx + 10, my + 50, 186, 0, 'Provide file name or path')
+local enter_button = ui.flat_button(input.x2, input.y, 15, 15, '', function() end)
+enter_button:drawadd(function(self)
+    local a, b, c, d, e = self.x + 4, self.y + 3, self.x2 - 6, self.y2 - 7, self.y2 - 3
+    gfx.drawLine(a, b, c, d)
+    gfx.drawLine(a, e, c, d)
+    gfx.drawLine(a + 1, b, c + 1, d)
+    gfx.drawLine(a + 1, e , c + 1, d)
+    gfx.drawLine(a + 2, b, c + 2, d)
+    gfx.drawLine(a + 2, e , c + 2, d)
+end)
 
-local files = ui.list(mx + 10, my + 75, 200, 167, false, true, 0, 0)
+local files = ui.list(mx + 10, input.y2 + 15, 200, 167, false, true, 0, 0)
 
 if platform then
 	OS = platform.platform()
@@ -80,16 +85,24 @@ function scandir(directory)
     return t
 end
 
+local selected_file
+
 sfile = function(fullpath)
     local file = ui.flat_button(files.x, files.y, files.w - 6, 15, fullpath, function() end, 'left')
     file.fullpath = fullpath
     file.is_selected = false
     function file:set_selected(selected)
         self.is_selected = selected == true and true or false -- so that is_selected is always a bool
+        if self.is_selected then
+            selected_file = self
+            self.label:set_color(0, 0, 0)
+        end
     end
     file:drawadd(function(self)
-        if self.is_selected then
-            gfx.drawRect(self.x, self.y, self.w, self.h, 255, 255, 255, 155)
+        if self.is_selected and selected_file == self then
+            gfx.fillRect(self.x + 1, self.y + 1, self.w - 2, self.h - 2, 255, 255, 255, 155)
+        else
+            self.label:set_color(255, 255, 255)
         end
     end)
     file:set_function(function()
@@ -98,19 +111,23 @@ sfile = function(fullpath)
     file:set_border(0, 0, 0, 0)
     return file
 end
-    
 
-for _, v in ipairs(scandir('/')) do   
-    local item = sfile(v)
-    files:append(item)
+function load_directory(dir)
+    for _, v in ipairs(scandir(dir)) do   
+        local item = sfile(v)
+        files:append(item)
+    end
 end
+
+load_directory('/')
 
 main:append(
     window,
     credits,
     input,
     files,
-    exit_button
+    exit_button,
+    enter_button
 )
 
 window.draw_background = true
@@ -126,7 +143,7 @@ local function tick()
         for x = 1, logo.width do
             for y = 1, logo.height do
                 local pix = logo:getPixel(x, y)
-                gfx.drawPixel(mx + x + 5, my + y + 5, pix.R, pix.G, pix.B,  pix.A)
+                gfx.drawPixel(mx + x + 5, my + y + 5, pix.R, pix.G, pix.B, pix.A)
             end
         end
     end
