@@ -8,6 +8,16 @@ local enabled = true
 
 local logo = pngImage('./scripts/CGImaster2/cgimasterlogo.png')
 
+local function draw_image(image, x, y)
+    if not (image or x or y) then return false end
+    for x_ = 1, image.width do
+        for y_ = 1, image.height do
+            local pix = image:getPixel(x_, y_)
+            gfx.drawPixel(x + x_ - 1, y + y_ - 1, pix.R, pix.G, pix.B, pix.A)
+        end
+    end
+end
+
 local main = ui.container()
 
 local window = ui.box(mx, my, mw, mh)
@@ -44,7 +54,8 @@ enter_button:drawadd(function(self)
     gfx.drawLine(a + 2, e , c + 2, d)
 end)
 
-local files = ui.list(mx + 10, input.y2 + 15, 200, 167, false, true, 0, 0)
+
+local files = ui.list(mx + 10, input.y2 + 14, 200, 167, false, true, 0, 0)
 
 if platform then
 	OS = platform.platform()
@@ -59,9 +70,10 @@ function scandir(directory)
     if OS:sub(1, 3) == 'WIN' then
         dir = 'dir "'..directory..'" /b /ad'
     else
-        dir = 'ls -A --file-type "'..directory..'"'
+        dir = 'ls --file-type "'..directory..'"'
     end
-    local pfile = popen(dir)
+    local pfile, err = popen(dir)
+    if err then tpt.throw_error(err) return false end
     for filename in pfile:lines() do
         local is_dir = filename:sub(#filename) == '/'
         if not (filename:find("%.png$") or is_dir) then
@@ -85,12 +97,24 @@ function scandir(directory)
     return t
 end
 
+local function execute(command)
+    local output, t = io.popen(command):lines(), {}
+    for line in output do
+        table.insert(t, line)
+    end
+    return t
+end
+
 local selected_file
+local working_dir = execute('pwd')[1]..'/scripts/CGImaster2/'
+local scrollbar_drawn = #files.items > files:get_max_visible_items()
 
 sfile = function(fullpath)
-    local file = ui.flat_button(files.x, files.y, files.w - 6, 15, fullpath, function() end, 'left')
+    local file = ui.flat_button(files.x, files.y, files.w - 6, 15, '   '..fullpath:sub(#fullpath - (fullpath:reverse():sub(2):find('/') or 2)):sub(2), function() end, 'left')
+    file.name = fullpath:sub(#fullpath - (fullpath:reverse():sub(2):find('/') or 2)):sub(2)
     file.fullpath = fullpath
     file.is_selected = false
+    file.is_dir = file.name:sub(#file.name) == '/'
     function file:set_selected(selected)
         self.is_selected = selected == true and true or false -- so that is_selected is always a bool
         if self.is_selected then
@@ -104,22 +128,87 @@ sfile = function(fullpath)
         else
             self.label:set_color(255, 255, 255)
         end
-    end)
+        if self.is_dir then
+            -- folder icon
+            gfx.fillRect(self.x + 3, self.y + 5, 11, 7)
+            gfx.fillRect(self.x + 3, self.y + 4, 10, 1, 160, 160, 160)
+            gfx.fillRect(self.x + 3, self.y + 3, 5, 1, 160, 160, 160)
+            gfx.fillRect(self.x + 3, self.y + 12, 10, 1, 160, 160, 160)
+            -- end folder icon
+        else
+            -- picture icon
+            gfx.fillRect(self.x + 4, self.y + 3, 9, 9)
+            gfx.fillRect(self.x + 3, self.y + 3, 1, 9)
+            gfx.fillRect(self.x + 4, self.y + 2, 9, 1)
+            gfx.fillRect(self.x + 13, self.y + 3, 1, 9)
+            gfx.fillRect(self.x + 4, self.y + 12, 9, 1)
+            -- smaller mountain
+            gfx.fillRect(self.x + 4, self.y + 8, 3, 3, 150, 150, 150)
+            gfx.drawPixel(self.x + 5, self.y + 7, 150, 150, 150)
+            -- bigger mountain
+            gfx.fillRect(self.x + 5, self.y + 11, 7, 1, 57, 57, 57)
+            gfx.fillRect(self.x + 5, self.y + 10, 8, 1, 57, 57, 57)
+            gfx.fillRect(self.x + 6, self.y + 9, 7, 1, 57, 57, 57)
+            gfx.fillRect(self.x + 7, self.y + 8, 5, 1, 57, 57, 57)
+            gfx.fillRect(self.x + 8, self.y + 7, 3, 1, 57, 57, 57)
+            gfx.drawPixel(self.x + 9, self.y + 6, 57, 57, 57)
+            -- the 'sun'
+            gfx.fillRect(self.x + 6, self.y + 3, 1, 3, 218, 218, 218)
+            gfx.fillRect(self.x + 5, self.y + 4, 3, 1, 218, 218, 218)
+            -- end picture icon
+        end
+    end, 1)
     file:set_function(function()
         file:set_selected(true)
+        if file.is_dir then
+            working_dir = working_dir..file.name
+            load_directory(working_dir)
+        end
     end)
     file:set_border(0, 0, 0, 0)
     return file
 end
 
-function load_directory(dir)
-    for _, v in ipairs(scandir(dir)) do   
-        local item = sfile(v)
-        files:append(item)
+local goup_button = ui.flat_button(input.x, input.y2, 15, 15, '', function()
+    working_dir = working_dir:sub(1, #working_dir - (working_dir:reverse():sub(2):find('/') or 1))
+    working_dir = working_dir == '' and '/' or working_dir
+    load_directory(working_dir)
+end)
+goup_button:drawadd(function(self)
+    gfx.drawLine(self.x + self.w/2, self.y + 3, self.x + self.w/2, self.y2 - 3)
+    gfx.drawLine(self.x + 3, self.y + 7, self.x + self.w/2, self.y + 3)
+    gfx.drawLine(self.x2 - 3, self.y + 7, self.x + self.w/2, self.y + 3)
+end)
+
+local working_dir_text = ui.scroll_text(goup_button.x2 + 4, goup_button.y + 4, 181, working_dir, nil, 200, 200, 200)
+function working_dir_text:mousewheel(x, y, d)
+    if ui.contains(x, y, self.x, self.y, self.x2, self.y2) then
+        self:set_scroll_pos(self.scroll_pos + d)
     end
 end
 
-load_directory('/')
+function load_directory(dir)
+    files.items = {}
+    files.scrollbar_pos = 1
+    files:set_padding(0)
+    for i, v in ipairs(scandir(dir)) do   
+        local item = sfile(working_dir..v)
+        files:append(item)
+        if i > 500 then break end
+    end
+    if #files.items == 0 then
+        files:set_padding(35)
+        files:append(ui.text(files.x, files.y, 'No PNG images or folders\n      found in here', 100, 100, 100))
+    end
+    working_dir_text:set_text(working_dir)
+    scrollbar_drawn = #files.items > files:get_max_visible_items()
+    for _, v in ipairs(files.items) do
+        --if v['set_size'] then v:set_size(scrollbar_drawn and files.w - 2 or files.w - 6, v.h) end
+    end
+    working_dir_text:set_scroll_pos(#working_dir - working_dir_text:get_max_visible_chars())
+end
+
+load_directory(working_dir)
 
 main:append(
     window,
@@ -127,7 +216,10 @@ main:append(
     input,
     files,
     exit_button,
-    enter_button
+    enter_button,
+    goup_button,
+    working_dir_text,
+    preview
 )
 
 window.draw_background = true
@@ -140,12 +232,10 @@ local function tick()
     if enabled then
         gfx.fillRect(0, 0, gfx.WIDTH, gfx.HEIGHT, 0, 0, 0, 140)
         main:draw()
-        for x = 1, logo.width do
-            for y = 1, logo.height do
-                local pix = logo:getPixel(x, y)
-                gfx.drawPixel(mx + x + 5, my + y + 5, pix.R, pix.G, pix.B, pix.A)
-            end
-        end
+        draw_image(logo, mx + 10, my + 10)
+        gfx.drawText(100, 400, 'WD==pwd:: '..working_dir)
+        gfx.drawText(100, 390, 'wdtext:: '..working_dir_text.text)
+        gfx.drawText(100, 380, 'wdtext_vis:: '..working_dir_text.visible_text)
     end
 end
 
