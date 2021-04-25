@@ -1,7 +1,7 @@
 require('scripts.CGImaster2.pngLua.png')
 require('scripts.Powderface.Powderface')
 
-local mw, mh = gfx.WIDTH, gfx.HEIGHT
+local mw, mh = 420, 255
 local mx, my = gfx.WIDTH/2 - mw/2, gfx.HEIGHT/2 - mh/2
 local mx2, my2 = mx + mw, my + mh
 local enabled = true
@@ -42,7 +42,11 @@ end
 
 local credits = ui.text(mx2 - tpt.textwidth('v2.0,  created by Gienio aka Geniusz1') - 35, my + 10, 'v2.0, created by Gienio aka Geniusz1', 255, 255, 255, 100)
 
-local input = ui.inputbox(mx + 10, my + 50, 186, 0, 'Provide file name or path')
+local input = ui.inputbox(mx + 10, my + 50, 186, 15, 'Provide file name or path')
+-- correction due to float rounding
+input.text:set_position(input.text.x, input.text.y - 1)
+input.placeholder:set_position(input.placeholder.x, input.placeholder.y - 1)
+
 local enter_button = ui.flat_button(input.x2, input.y, 15, 15, '', function() end)
 enter_button:drawadd(function(self)
     local a, b, c, d, e = self.x + 4, self.y + 3, self.x2 - 6, self.y2 - 7, self.y2 - 3
@@ -169,15 +173,18 @@ sfile = function(fullpath)
     return file
 end
 
-local goup_button = ui.flat_button(input.x, input.y2, 15, 15, '', function()
+
+function goup()
     working_dir = working_dir:sub(1, #working_dir - (working_dir:reverse():sub(2):find('/') or 1))
     working_dir = working_dir == '' and '/' or working_dir
     load_directory(working_dir)
-end)
+end
+
+local goup_button = ui.flat_button(input.x, input.y2, 15, 15, '', goup)
 goup_button:drawadd(function(self)
-    gfx.drawLine(self.x + self.w/2, self.y + 3, self.x + self.w/2, self.y2 - 3)
-    gfx.drawLine(self.x + 3, self.y + 7, self.x + self.w/2, self.y + 3)
-    gfx.drawLine(self.x2 - 3, self.y + 7, self.x + self.w/2, self.y + 3)
+    gfx.drawLine(self.x + self.w/2 - 1, self.y + 3, self.x + self.w/2 - 1, self.y2 - 3)
+    gfx.drawLine(self.x + 3, self.y + 7, self.x + self.w/2 - 1, self.y + 3)
+    gfx.drawLine(self.x2 - 3, self.y + 7, self.x + self.w/2 - 1, self.y + 3)
 end)
 
 local working_dir_text = ui.scroll_text(goup_button.x2 + 4, goup_button.y + 4, 181, working_dir, nil, 200, 200, 200)
@@ -199,11 +206,26 @@ function load_directory(dir)
     if #files.items == 0 then
         files:set_padding(35)
         files:append(ui.text(files.x, files.y, 'No PNG images or folders\n      found in here', 100, 100, 100))
+        local hyperlink_goup = ui.flat_button(files.x, files.y, 121, 20, 'go back', goup, nil, 100, 100, 200)
+        function hyperlink_goup:draw()
+            if self.visible then
+                local r, g, b = 100, 100, 200
+                if self.hover then
+                    r, g, b = 70, 70, 255
+                end
+                if self.held then
+                    r, g, b = 20, 20, 200
+                end
+                gfx.drawLine(self.x + self.w/2 - tpt.textwidth(self.label.text)/2 + 5, self.y2 - 1, self.x2 - self.h/2 - tpt.textwidth(self.label.text), self.y2 - 1, r , g , b)
+                gfx.drawText(self.x + self.w/2 - tpt.textwidth(self.label.text)/2, self.y + self.h/2, self.label.text, r, g, b)
+            end
+        end
+        files:append(hyperlink_goup)
     end
     working_dir_text:set_text(working_dir)
     scrollbar_drawn = #files.items > files:get_max_visible_items()
     for _, v in ipairs(files.items) do
-        --if v['set_size'] then v:set_size(scrollbar_drawn and files.w - 2 or files.w - 6, v.h) end
+        if v['set_size'] and v.fullpath then v:set_size(scrollbar_drawn and files.w - 6 or files.w - 2, v.h) end
     end
     working_dir_text:set_scroll_pos(#working_dir - working_dir_text:get_max_visible_chars())
 end
@@ -233,9 +255,6 @@ local function tick()
         gfx.fillRect(0, 0, gfx.WIDTH, gfx.HEIGHT, 0, 0, 0, 140)
         main:draw()
         draw_image(logo, mx + 10, my + 10)
-        gfx.drawText(100, 400, 'WD==pwd:: '..working_dir)
-        gfx.drawText(100, 390, 'wdtext:: '..working_dir_text.text)
-        gfx.drawText(100, 380, 'wdtext_vis:: '..working_dir_text.visible_text)
     end
 end
 
