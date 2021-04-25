@@ -1,10 +1,11 @@
 require('scripts.CGImaster2.pngLua.png')
 require('scripts.Powderface.Powderface')
 
-local mw, mh = 420, 255
+local mw, mh = 420, 256
 local mx, my = gfx.WIDTH/2 - mw/2, gfx.HEIGHT/2 - mh/2
-local mx2, my2 = mx + mw, my + mh
+local mx2, my2 = mx + mw - 1, my + mh - 1
 local enabled = true
+local image_placing_mode = false
 
 local logo = pngImage('./scripts/CGImaster2/cgimasterlogo.png')
 
@@ -19,10 +20,11 @@ local function draw_image(image, x, y)
 end
 
 local main = ui.container()
+local image_placing_container = ui.container()
 
 local window = ui.box(mx, my, mw, mh)
 
-local exit_button = ui.flat_button(mx2 - 31, my + 6, 30, 15, '', function() enabled = false end)
+local exit_button = ui.flat_button(mx2 - 30, my + 6, 30, 15, '', function() enabled = false end)
 function exit_button:draw()
     gfx.fillRect(self.x, self.y, self.w, self.h, 200, 70, 70)
     if self.hover then
@@ -43,9 +45,6 @@ end
 local credits = ui.text(mx2 - tpt.textwidth('v2.0,  created by Gienio aka Geniusz1') - 35, my + 10, 'v2.0, created by Gienio aka Geniusz1', 255, 255, 255, 100)
 
 local input = ui.inputbox(mx + 10, my + 50, 186, 15, 'Provide file name or path')
--- correction due to float rounding
-input.text:set_position(input.text.x, input.text.y - 1)
-input.placeholder:set_position(input.placeholder.x, input.placeholder.y - 1)
 
 local enter_button = ui.flat_button(input.x2, input.y, 15, 15, '', function() end)
 enter_button:drawadd(function(self)
@@ -194,6 +193,12 @@ function working_dir_text:mousewheel(x, y, d)
     end
 end
 
+function begin()
+    image_placing_mode = true
+end
+
+local begin_button = ui.button(mx2 - tpt.textwidth('BEGIN PLACING THE IMAGE') - 20, my2 - 30, 0, 0, 'BEGIN PLACING THE IMAGE', begin, nil, 0, 255, 0)
+
 function load_directory(dir)
     files.items = {}
     files.scrollbar_pos = 1
@@ -241,7 +246,7 @@ main:append(
     enter_button,
     goup_button,
     working_dir_text,
-    preview
+    begin_button
 )
 
 window.draw_background = true
@@ -251,7 +256,7 @@ local function contains(x, y, a1, b1, a2, b2)
 end
 
 local function tick()
-    if enabled then
+    if enabled and not image_placing_mode then
         gfx.fillRect(0, 0, gfx.WIDTH, gfx.HEIGHT, 0, 0, 0, 140)
         main:draw()
         draw_image(logo, mx + 10, my + 10)
@@ -259,7 +264,7 @@ local function tick()
 end
 
 local function mouseup(x, y, button, reason)
-    if enabled then 
+    if enabled and not image_placing_mode then 
         if not contains(x, y, mx, my, mx2, my2) then enabled = false end
         main:handle_event('mouseup', x, y, button, reason)
         return false  
@@ -267,20 +272,20 @@ local function mouseup(x, y, button, reason)
 end
 
 local function mousemove(x, y, dx, dy)
-    if enabled then 
+    if enabled and not image_placing_mode then
         main:handle_event('mousemove', x, y, dx, dy)
         return false  
     end
 end
 
 local function mousedown(x, y, button)
-    if enabled then 
+    if enabled and not image_placing_mode then 
         main:handle_event('mousedown', x, y, button)
         return false  
     end
 end
 local function mousewheel(x, y, d)
-    if enabled then 
+    if enabled and not image_placing_mode then 
         main:handle_event('mousewheel', x, y, d)
         return false  
     end
@@ -288,10 +293,18 @@ end
 
 
 local function keypress(key, scan, rep, shift, ctrl, alt)
-    main:handle_event('keypress', key, scan, rep, shift, ctrl, alt)
+    if enabled and not image_placing_mode then
+        main:handle_event('keypress', key, scan, rep, shift, ctrl, alt)
+    elseif enabled and image_placing_mode then
+        if scan == 27 then
+            image_placing_mode = false
+            return false
+        end
+    end
     if scan == 18 and ctrl and shift then
         enabled = true
-    elseif scan == 41 and enabled then
+    end
+    if scan == 41 then
         enabled = false
         return false
     end
